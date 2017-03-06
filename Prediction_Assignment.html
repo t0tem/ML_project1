@@ -148,10 +148,12 @@ if(!file.exists(&quot;data/pml-testing.csv&quot;)) {
 <p>Reading data</p>
 <pre class="r"><code>training &lt;- read.csv(&quot;data/pml-training.csv&quot;)
 testing &lt;- read.csv(&quot;data/pml-testing.csv&quot;)</code></pre>
-<p>For further estimation of out-of-sample error we will divide the initial training set on 2: sub-training and validation.</p>
-<pre class="r"><code>inTrain &lt;- createDataPartition(training$classe, p = 3/4)[[1]]
+<p>For further estimation of out-of-sample error we will divide the initial training set on two: sub-training and validation.</p>
+<pre class="r"><code>set.seed(232323)
+inTrain &lt;- createDataPartition(training$classe, p = 3/4)[[1]]
 sub.training &lt;- training[inTrain,]
 validation &lt;- training[-inTrain,]</code></pre>
+<pre class="r"><code>str(sub.training)</code></pre>
 </div>
 
 

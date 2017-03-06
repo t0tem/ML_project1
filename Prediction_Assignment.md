@@ -25,9 +25,6 @@ library(caret)
 ## Loading required package: ggplot2
 ```
 
-
-
-
 Downloading files and storing them in `data` folder (if not yet there)
 
 ```r
@@ -48,14 +45,20 @@ training <- read.csv("data/pml-training.csv")
 testing <- read.csv("data/pml-testing.csv")
 ```
 
-For further estimation of out-of-sample error we will divide the initial training set on 2: sub-training and validation.
+For further estimation of out-of-sample error we will divide the initial training set on two: sub-training and validation.
 
 ```r
+set.seed(232323)
 inTrain <- createDataPartition(training$classe, p = 3/4)[[1]]
 sub.training <- training[inTrain,]
 validation <- training[-inTrain,]
 ```
 
+
+
+```r
+str(sub.training)
+```
 
 
 
