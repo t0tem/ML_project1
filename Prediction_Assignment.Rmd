@@ -42,6 +42,39 @@ training <- read.csv("data/pml-training.csv")
 testing <- read.csv("data/pml-testing.csv")
 ```
 
+Let's take a look at number of observations and variables in our data set
+```{r}
+dim(training)
+```
+
+And the structure of the data (output omitted as it's too long)
+```{r results='hide'}
+str(training)
+```
+we see that many variables contain some missing values.  
+So next move is to remove from training set all variables with NA's
+```{r}
+training <- training[, colSums(is.na(training)) == 0]
+```
+
+Now let's identify and eliminate variables with variance close to zero, we'll use function `nearZeroVar` from caret package for this
+```{r}
+nZeroVar <- nearZeroVar(training)
+training <- training[, -nZeroVar]
+```
+
+Let's take a look at the names of variables left in our data set
+```{r}
+names(training)
+```
+
+It looks like first 5 of them are not that useful (user name, time stamp, etc..) so we get rid of them
+```{r}
+training <- training[, -c(1:5)]
+```
+
+# Choosing of prediction algorithm
+
 For further estimation of out-of-sample error we will divide the initial training set on two: sub-training and validation.
 ```{r}
 set.seed(232323)
@@ -50,12 +83,29 @@ sub.training <- training[inTrain, ]
 validation <- training[-inTrain, ]
 ```
 
-After taking a look at data (output omitted as it's too long)
-```{r results='hide'}
-str(sub.training)
+## Decision tree
+First let's fit a model based on Decision tree method
+```{r}
+fit_dt <- train(classe ~., data = sub.training, method = "rpart")
+fit_dt2 <- rpart(classe ~., data = sub.training, method = "class") #можно без класса? только в предикт?
+fit_dt3 <- rpart(classe ~., data = sub.training)
+
+fit_dt2
+fit_dt3
+
+
+
+pred_dt <- predict(fit_dt, newdata = validation)
+pred_dt2 <- predict(fit_dt2, newdata = validation, type = "class")
+
+confusionMatrix(pred_dt, validation$classe)
+confusionMatrix(pred_dt2, validation$classe)
+
+
+confusionMatrix(predict(fit_dt), sub.training$classe)
+
 ```
-we see that many variables contain a lot of missing values.  
-So next move is to remove from training set all variables with NAs
+
 
 
 
