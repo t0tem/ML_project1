@@ -25,6 +25,31 @@ library(caret)
 ## Loading required package: ggplot2
 ```
 
+```r
+library(rpart)
+library(e1071)
+library(randomForest)
+```
+
+```
+## randomForest 4.6-12
+```
+
+```
+## Type rfNews() to see new features/changes/bug fixes.
+```
+
+```
+## 
+## Attaching package: 'randomForest'
+```
+
+```
+## The following object is masked from 'package:ggplot2':
+## 
+##     margin
+```
+
 Downloading files and storing them in `data` folder (if not yet there)
 
 ```r
@@ -45,7 +70,7 @@ training <- read.csv("data/pml-training.csv")
 testing <- read.csv("data/pml-testing.csv")
 ```
 
-Let's take a look at number of observations and variables in our data set
+Let's take a look at dimensions of our data set
 
 ```r
 dim(training)
@@ -67,89 +92,204 @@ So next move is to remove from training set all variables with NA's
 training <- training[, colSums(is.na(training)) == 0]
 ```
 
-Now let's identify and eliminate variables with variance close to zero
+Now let's identify and eliminate variables with variance close to zero, we'll use function `nearZeroVar` from caret package for this
 
 ```r
 nZeroVar <- nearZeroVar(training)
 training <- training[, -nZeroVar]
-str(training)
+```
+
+Let's take a look at the names of variables left in our data set
+
+```r
+names(training)
 ```
 
 ```
-## 'data.frame':	19622 obs. of  59 variables:
-##  $ X                   : int  1 2 3 4 5 6 7 8 9 10 ...
-##  $ user_name           : Factor w/ 6 levels "adelmo","carlitos",..: 2 2 2 2 2 2 2 2 2 2 ...
-##  $ raw_timestamp_part_1: int  1323084231 1323084231 1323084231 1323084232 1323084232 1323084232 1323084232 1323084232 1323084232 1323084232 ...
-##  $ raw_timestamp_part_2: int  788290 808298 820366 120339 196328 304277 368296 440390 484323 484434 ...
-##  $ cvtd_timestamp      : Factor w/ 20 levels "02/12/2011 13:32",..: 9 9 9 9 9 9 9 9 9 9 ...
-##  $ num_window          : int  11 11 11 12 12 12 12 12 12 12 ...
-##  $ roll_belt           : num  1.41 1.41 1.42 1.48 1.48 1.45 1.42 1.42 1.43 1.45 ...
-##  $ pitch_belt          : num  8.07 8.07 8.07 8.05 8.07 8.06 8.09 8.13 8.16 8.17 ...
-##  $ yaw_belt            : num  -94.4 -94.4 -94.4 -94.4 -94.4 -94.4 -94.4 -94.4 -94.4 -94.4 ...
-##  $ total_accel_belt    : int  3 3 3 3 3 3 3 3 3 3 ...
-##  $ gyros_belt_x        : num  0 0.02 0 0.02 0.02 0.02 0.02 0.02 0.02 0.03 ...
-##  $ gyros_belt_y        : num  0 0 0 0 0.02 0 0 0 0 0 ...
-##  $ gyros_belt_z        : num  -0.02 -0.02 -0.02 -0.03 -0.02 -0.02 -0.02 -0.02 -0.02 0 ...
-##  $ accel_belt_x        : int  -21 -22 -20 -22 -21 -21 -22 -22 -20 -21 ...
-##  $ accel_belt_y        : int  4 4 5 3 2 4 3 4 2 4 ...
-##  $ accel_belt_z        : int  22 22 23 21 24 21 21 21 24 22 ...
-##  $ magnet_belt_x       : int  -3 -7 -2 -6 -6 0 -4 -2 1 -3 ...
-##  $ magnet_belt_y       : int  599 608 600 604 600 603 599 603 602 609 ...
-##  $ magnet_belt_z       : int  -313 -311 -305 -310 -302 -312 -311 -313 -312 -308 ...
-##  $ roll_arm            : num  -128 -128 -128 -128 -128 -128 -128 -128 -128 -128 ...
-##  $ pitch_arm           : num  22.5 22.5 22.5 22.1 22.1 22 21.9 21.8 21.7 21.6 ...
-##  $ yaw_arm             : num  -161 -161 -161 -161 -161 -161 -161 -161 -161 -161 ...
-##  $ total_accel_arm     : int  34 34 34 34 34 34 34 34 34 34 ...
-##  $ gyros_arm_x         : num  0 0.02 0.02 0.02 0 0.02 0 0.02 0.02 0.02 ...
-##  $ gyros_arm_y         : num  0 -0.02 -0.02 -0.03 -0.03 -0.03 -0.03 -0.02 -0.03 -0.03 ...
-##  $ gyros_arm_z         : num  -0.02 -0.02 -0.02 0.02 0 0 0 0 -0.02 -0.02 ...
-##  $ accel_arm_x         : int  -288 -290 -289 -289 -289 -289 -289 -289 -288 -288 ...
-##  $ accel_arm_y         : int  109 110 110 111 111 111 111 111 109 110 ...
-##  $ accel_arm_z         : int  -123 -125 -126 -123 -123 -122 -125 -124 -122 -124 ...
-##  $ magnet_arm_x        : int  -368 -369 -368 -372 -374 -369 -373 -372 -369 -376 ...
-##  $ magnet_arm_y        : int  337 337 344 344 337 342 336 338 341 334 ...
-##  $ magnet_arm_z        : int  516 513 513 512 506 513 509 510 518 516 ...
-##  $ roll_dumbbell       : num  13.1 13.1 12.9 13.4 13.4 ...
-##  $ pitch_dumbbell      : num  -70.5 -70.6 -70.3 -70.4 -70.4 ...
-##  $ yaw_dumbbell        : num  -84.9 -84.7 -85.1 -84.9 -84.9 ...
-##  $ total_accel_dumbbell: int  37 37 37 37 37 37 37 37 37 37 ...
-##  $ gyros_dumbbell_x    : num  0 0 0 0 0 0 0 0 0 0 ...
-##  $ gyros_dumbbell_y    : num  -0.02 -0.02 -0.02 -0.02 -0.02 -0.02 -0.02 -0.02 -0.02 -0.02 ...
-##  $ gyros_dumbbell_z    : num  0 0 0 -0.02 0 0 0 0 0 0 ...
-##  $ accel_dumbbell_x    : int  -234 -233 -232 -232 -233 -234 -232 -234 -232 -235 ...
-##  $ accel_dumbbell_y    : int  47 47 46 48 48 48 47 46 47 48 ...
-##  $ accel_dumbbell_z    : int  -271 -269 -270 -269 -270 -269 -270 -272 -269 -270 ...
-##  $ magnet_dumbbell_x   : int  -559 -555 -561 -552 -554 -558 -551 -555 -549 -558 ...
-##  $ magnet_dumbbell_y   : int  293 296 298 303 292 294 295 300 292 291 ...
-##  $ magnet_dumbbell_z   : num  -65 -64 -63 -60 -68 -66 -70 -74 -65 -69 ...
-##  $ roll_forearm        : num  28.4 28.3 28.3 28.1 28 27.9 27.9 27.8 27.7 27.7 ...
-##  $ pitch_forearm       : num  -63.9 -63.9 -63.9 -63.9 -63.9 -63.9 -63.9 -63.8 -63.8 -63.8 ...
-##  $ yaw_forearm         : num  -153 -153 -152 -152 -152 -152 -152 -152 -152 -152 ...
-##  $ total_accel_forearm : int  36 36 36 36 36 36 36 36 36 36 ...
-##  $ gyros_forearm_x     : num  0.03 0.02 0.03 0.02 0.02 0.02 0.02 0.02 0.03 0.02 ...
-##  $ gyros_forearm_y     : num  0 0 -0.02 -0.02 0 -0.02 0 -0.02 0 0 ...
-##  $ gyros_forearm_z     : num  -0.02 -0.02 0 0 -0.02 -0.03 -0.02 0 -0.02 -0.02 ...
-##  $ accel_forearm_x     : int  192 192 196 189 189 193 195 193 193 190 ...
-##  $ accel_forearm_y     : int  203 203 204 206 206 203 205 205 204 205 ...
-##  $ accel_forearm_z     : int  -215 -216 -213 -214 -214 -215 -215 -213 -214 -215 ...
-##  $ magnet_forearm_x    : int  -17 -18 -18 -16 -17 -9 -18 -9 -16 -22 ...
-##  $ magnet_forearm_y    : num  654 661 658 658 655 660 659 660 653 656 ...
-##  $ magnet_forearm_z    : num  476 473 469 469 473 478 470 474 476 473 ...
-##  $ classe              : Factor w/ 5 levels "A","B","C","D",..: 1 1 1 1 1 1 1 1 1 1 ...
+##  [1] "X"                    "user_name"            "raw_timestamp_part_1"
+##  [4] "raw_timestamp_part_2" "cvtd_timestamp"       "num_window"          
+##  [7] "roll_belt"            "pitch_belt"           "yaw_belt"            
+## [10] "total_accel_belt"     "gyros_belt_x"         "gyros_belt_y"        
+## [13] "gyros_belt_z"         "accel_belt_x"         "accel_belt_y"        
+## [16] "accel_belt_z"         "magnet_belt_x"        "magnet_belt_y"       
+## [19] "magnet_belt_z"        "roll_arm"             "pitch_arm"           
+## [22] "yaw_arm"              "total_accel_arm"      "gyros_arm_x"         
+## [25] "gyros_arm_y"          "gyros_arm_z"          "accel_arm_x"         
+## [28] "accel_arm_y"          "accel_arm_z"          "magnet_arm_x"        
+## [31] "magnet_arm_y"         "magnet_arm_z"         "roll_dumbbell"       
+## [34] "pitch_dumbbell"       "yaw_dumbbell"         "total_accel_dumbbell"
+## [37] "gyros_dumbbell_x"     "gyros_dumbbell_y"     "gyros_dumbbell_z"    
+## [40] "accel_dumbbell_x"     "accel_dumbbell_y"     "accel_dumbbell_z"    
+## [43] "magnet_dumbbell_x"    "magnet_dumbbell_y"    "magnet_dumbbell_z"   
+## [46] "roll_forearm"         "pitch_forearm"        "yaw_forearm"         
+## [49] "total_accel_forearm"  "gyros_forearm_x"      "gyros_forearm_y"     
+## [52] "gyros_forearm_z"      "accel_forearm_x"      "accel_forearm_y"     
+## [55] "accel_forearm_z"      "magnet_forearm_x"     "magnet_forearm_y"    
+## [58] "magnet_forearm_z"     "classe"
 ```
 
-# Chooosing of prediction algorithm
+It looks like first 5 of them are not that useful (user name, time stamp, etc..) so we get rid of them
+
+```r
+training <- training[, -c(1:5)]
+```
+
+# Prediction algorithm choosing
 
 For further estimation of out-of-sample error we will divide the initial training set on two: sub-training and validation.
 
 ```r
-set.seed(232323)
+seed <- 232323
+set.seed(seed)
 inTrain <- createDataPartition(training$classe, p = 3/4)[[1]]
 sub.training <- training[inTrain, ]
 validation <- training[-inTrain, ]
 ```
 
+## Decision tree
+First let's fit a model based on Decision tree method and build the prediction on validation set.
 
+```r
+fit_dt <- rpart(classe ~., data = sub.training)
+pred_dt <- predict(fit_dt, newdata = validation, type = "class")
+
+confusionMatrix(pred_dt, validation$classe)
+```
+
+```
+## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1289  148   38   54   11
+##          B   26  588   66   18   15
+##          C   26   93  676   51   30
+##          D   42  105   63  630  162
+##          E   12   15   12   51  683
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.7883          
+##                  95% CI : (0.7766, 0.7997)
+##     No Information Rate : 0.2845          
+##     P-Value [Acc > NIR] : < 2.2e-16       
+##                                           
+##                   Kappa : 0.7317          
+##  Mcnemar's Test P-Value : < 2.2e-16       
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.9240   0.6196   0.7906   0.7836   0.7580
+## Specificity            0.9285   0.9684   0.9506   0.9093   0.9775
+## Pos Pred Value         0.8370   0.8247   0.7717   0.6287   0.8836
+## Neg Pred Value         0.9685   0.9139   0.9556   0.9554   0.9472
+## Prevalence             0.2845   0.1935   0.1743   0.1639   0.1837
+## Detection Rate         0.2628   0.1199   0.1378   0.1285   0.1393
+## Detection Prevalence   0.3140   0.1454   0.1786   0.2043   0.1576
+## Balanced Accuracy      0.9262   0.7940   0.8706   0.8464   0.8678
+```
+
+Accuracy of our prediction is 78.83% and the estimation of out-of sample error is 21%
+
+```r
+unname(1 - confusionMatrix(pred_dt, validation$classe)$overall[1])
+```
+
+```
+## [1] 0.2116639
+```
+Not very impresssive... Let's try something else.
+
+## Support Vector Machines
+
+
+```r
+tr_control <- trainControl(method="cv", number = 3)
+set.seed(seed)
+
+fit_svm <- svm(classe ~., data = sub.training, trControl=tr_control)
+pred_svm <- predict(fit_svm, newdata = validation)
+confusionMatrix(pred_svm, validation$classe)
+```
+
+```
+## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1381   53    2    3    0
+##          B    5  864   24    0    2
+##          C    8   26  819   72    5
+##          D    1    1    9  728   28
+##          E    0    5    1    1  866
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.9498          
+##                  95% CI : (0.9434, 0.9558)
+##     No Information Rate : 0.2845          
+##     P-Value [Acc > NIR] : < 2.2e-16       
+##                                           
+##                   Kappa : 0.9365          
+##  Mcnemar's Test P-Value : NA              
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.9900   0.9104   0.9579   0.9055   0.9612
+## Specificity            0.9835   0.9922   0.9726   0.9905   0.9983
+## Pos Pred Value         0.9597   0.9654   0.8806   0.9492   0.9920
+## Neg Pred Value         0.9960   0.9788   0.9909   0.9816   0.9913
+## Prevalence             0.2845   0.1935   0.1743   0.1639   0.1837
+## Detection Rate         0.2816   0.1762   0.1670   0.1485   0.1766
+## Detection Prevalence   0.2934   0.1825   0.1896   0.1564   0.1780
+## Balanced Accuracy      0.9867   0.9513   0.9652   0.9480   0.9797
+```
+
+
+## Random Forest
+
+
+```r
+fit_rf <- randomForest(classe ~., data = sub.training, trControl=tr_control)
+pred_rf <- predict(fit_rf, newdata = validation)
+confusionMatrix(pred_rf, validation$classe)
+```
+
+```
+## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1395    1    0    0    0
+##          B    0  946    3    0    0
+##          C    0    2  852    0    0
+##          D    0    0    0  803    1
+##          E    0    0    0    1  900
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.9984          
+##                  95% CI : (0.9968, 0.9993)
+##     No Information Rate : 0.2845          
+##     P-Value [Acc > NIR] : < 2.2e-16       
+##                                           
+##                   Kappa : 0.9979          
+##  Mcnemar's Test P-Value : NA              
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            1.0000   0.9968   0.9965   0.9988   0.9989
+## Specificity            0.9997   0.9992   0.9995   0.9998   0.9998
+## Pos Pred Value         0.9993   0.9968   0.9977   0.9988   0.9989
+## Neg Pred Value         1.0000   0.9992   0.9993   0.9998   0.9998
+## Prevalence             0.2845   0.1935   0.1743   0.1639   0.1837
+## Detection Rate         0.2845   0.1929   0.1737   0.1637   0.1835
+## Detection Prevalence   0.2847   0.1935   0.1741   0.1639   0.1837
+## Balanced Accuracy      0.9999   0.9980   0.9980   0.9993   0.9993
+```
 
 
 
