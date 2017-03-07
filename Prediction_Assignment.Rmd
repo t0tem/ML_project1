@@ -100,7 +100,7 @@ Accuracy of our prediction is 78.83% and the estimation of out-of sample error i
 ```{r}
 unname(1 - confusionMatrix(pred_dt, validation$classe)$overall[1])
 ```
-Not very impresssive... Let's try something else.
+Not very impressive... Let's try something else.
 
 ## Support Vector Machines
 
@@ -108,7 +108,7 @@ Not very impresssive... Let's try something else.
 tr_control <- trainControl(method="cv", number = 3)
 set.seed(seed)
 
-fit_svm <- svm(classe ~., data = sub.training, trControl=tr_control)
+fit_svm <- svm(classe ~., data = sub.training, trControl = tr_control)
 pred_svm <- predict(fit_svm, newdata = validation)
 confusionMatrix(pred_svm, validation$classe)
 ```
@@ -117,7 +117,7 @@ confusionMatrix(pred_svm, validation$classe)
 ## Random Forest
 
 ```{r}
-fit_rf <- randomForest(classe ~., data = sub.training, trControl=tr_control)
+fit_rf <- randomForest(classe ~., data = sub.training, trControl = tr_control)
 pred_rf <- predict(fit_rf, newdata = validation)
 confusionMatrix(pred_rf, validation$classe)
 ```
