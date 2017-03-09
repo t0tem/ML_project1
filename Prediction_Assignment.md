@@ -55,6 +55,8 @@ Downloading files and storing them in `data` folder (if not yet there)
 ```r
 url1 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
 url2 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+if(!dir.exists("data")) {dir.create("data")}
 if(!file.exists("data/pml-training.csv")) {
       download.file(url1, "data/pml-training.csv")
 }
@@ -134,7 +136,7 @@ It looks like first 5 of them are not that useful (user name, time stamp, etc..)
 training <- training[, -c(1:5)]
 ```
 
-# Prediction algorithm choosing
+# Choosing the prediction algorithm
 
 For further estimation of out-of-sample error we will divide the initial training set on two: sub-training and validation.
 
@@ -150,9 +152,21 @@ validation <- training[-inTrain, ]
 First let's fit a model based on Decision tree method and build the prediction on validation set.
 
 ```r
+set.seed(seed)
+start_time <- proc.time()
 fit_dt <- rpart(classe ~., data = sub.training)
-pred_dt <- predict(fit_dt, newdata = validation, type = "class")
+finish_time <- proc.time() - start_time
+print(finish_time)
+```
 
+```
+##    user  system elapsed 
+##    3.96    0.01    3.97
+```
+Model training took very little time. Let's check the accuracy on validation set
+
+```r
+pred_dt <- predict(fit_dt, newdata = validation, type = "class")
 confusionMatrix(pred_dt, validation$classe)
 ```
 
@@ -189,7 +203,6 @@ confusionMatrix(pred_dt, validation$classe)
 ## Detection Prevalence   0.3140   0.1454   0.1786   0.2043   0.1576
 ## Balanced Accuracy      0.9262   0.7940   0.8706   0.8464   0.8678
 ```
-
 Accuracy of our prediction is 78.83% and the estimation of out-of sample error is 21%
 
 ```r
@@ -199,16 +212,29 @@ unname(1 - confusionMatrix(pred_dt, validation$classe)$overall[1])
 ```
 ## [1] 0.2116639
 ```
-Not very impresssive... Let's try something else.
+Not very impressive... Let's try something else.
 
 ## Support Vector Machines
-
+We will continue with Support Vector Machines.  
+This time we'll add K-fold cross-validation method with 3 folds.
 
 ```r
 tr_control <- trainControl(method="cv", number = 3)
-set.seed(seed)
 
-fit_svm <- svm(classe ~., data = sub.training, trControl=tr_control)
+set.seed(seed)
+start_time <- proc.time()
+fit_svm <- svm(classe ~., data = sub.training, trControl = tr_control)
+finish_time <- proc.time() - start_time
+print(finish_time)
+```
+
+```
+##    user  system elapsed 
+##   82.68    0.27   84.67
+```
+There is more time spent on training, but let's check the accuracy
+
+```r
 pred_svm <- predict(fit_svm, newdata = validation)
 confusionMatrix(pred_svm, validation$classe)
 ```
@@ -246,13 +272,27 @@ confusionMatrix(pred_svm, validation$classe)
 ## Detection Prevalence   0.2934   0.1825   0.1896   0.1564   0.1780
 ## Balanced Accuracy      0.9867   0.9513   0.9652   0.9480   0.9797
 ```
-
+94.98% accuracy on validation set - not bad!  
+We'll give another try with one more approach and then pick a winner.
 
 ## Random Forest
-
+It's Random Forest's turn. We'll use the same cross-validation with it.
 
 ```r
-fit_rf <- randomForest(classe ~., data = sub.training, trControl=tr_control)
+set.seed(seed)
+start_time <- proc.time()
+fit_rf <- randomForest(classe ~., data = sub.training, trControl = tr_control)
+finish_time <- proc.time() - start_time
+print(finish_time)
+```
+
+```
+##    user  system elapsed 
+##   93.39    0.39   96.69
+```
+It took less time than for SVM. And what's the score?
+
+```r
 pred_rf <- predict(fit_rf, newdata = validation)
 confusionMatrix(pred_rf, validation$classe)
 ```
@@ -290,6 +330,19 @@ confusionMatrix(pred_rf, validation$classe)
 ## Detection Prevalence   0.2847   0.1935   0.1741   0.1639   0.1837
 ## Balanced Accuracy      0.9999   0.9980   0.9980   0.9993   0.9993
 ```
+99.84% accuracy on validation set, thus estimation of out-of sample error is 0.16% - we have our winner.
 
+# Applying the chosen algorithm
+So now it's time to apply the chosen algorithm on our test data set and make a prediction that will finalize this assignment.
+
+```r
+predict(fit_rf, newdata = testing)
+```
+
+```
+##  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 
+##  B  A  B  A  A  E  D  B  A  A  B  C  B  A  E  E  A  B  B  B 
+## Levels: A B C D E
+```
 
 

@@ -149,6 +149,8 @@ library(randomForest)</code></pre>
 <p>Downloading files and storing them in <code>data</code> folder (if not yet there)</p>
 <pre class="r"><code>url1 &lt;- &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv&quot;
 url2 &lt;- &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv&quot;
+
+if(!dir.exists(&quot;data&quot;)) {dir.create(&quot;data&quot;)}
 if(!file.exists(&quot;data/pml-training.csv&quot;)) {
       download.file(url1, &quot;data/pml-training.csv&quot;)
 }
@@ -194,8 +196,8 @@ training &lt;- training[, -nZeroVar]</code></pre>
 <p>It looks like first 5 of them are not that useful (user name, time stamp, etc..) so we get rid of them</p>
 <pre class="r"><code>training &lt;- training[, -c(1:5)]</code></pre>
 </div>
-<div id="prediction-algorithm-choosing" class="section level1">
-<h1>Prediction algorithm choosing</h1>
+<div id="choosing-the-prediction-algorithm" class="section level1">
+<h1>Choosing the prediction algorithm</h1>
 <p>For further estimation of out-of-sample error we will divide the initial training set on two: sub-training and validation.</p>
 <pre class="r"><code>seed &lt;- 232323
 set.seed(seed)
@@ -205,9 +207,15 @@ validation &lt;- training[-inTrain, ]</code></pre>
 <div id="decision-tree" class="section level2">
 <h2>Decision tree</h2>
 <p>First let’s fit a model based on Decision tree method and build the prediction on validation set.</p>
-<pre class="r"><code>fit_dt &lt;- rpart(classe ~., data = sub.training)
-pred_dt &lt;- predict(fit_dt, newdata = validation, type = &quot;class&quot;)
-
+<pre class="r"><code>set.seed(seed)
+start_time &lt;- proc.time()
+fit_dt &lt;- rpart(classe ~., data = sub.training)
+finish_time &lt;- proc.time() - start_time
+print(finish_time)</code></pre>
+<pre><code>##    user  system elapsed 
+##    3.96    0.01    3.97</code></pre>
+<p>Model training took very little time. Let’s check the accuracy on validation set</p>
+<pre class="r"><code>pred_dt &lt;- predict(fit_dt, newdata = validation, type = &quot;class&quot;)
 confusionMatrix(pred_dt, validation$classe)</code></pre>
 <pre><code>## Confusion Matrix and Statistics
 ## 
@@ -243,15 +251,23 @@ confusionMatrix(pred_dt, validation$classe)</code></pre>
 <p>Accuracy of our prediction is 78.83% and the estimation of out-of sample error is 21%</p>
 <pre class="r"><code>unname(1 - confusionMatrix(pred_dt, validation$classe)$overall[1])</code></pre>
 <pre><code>## [1] 0.2116639</code></pre>
-<p>Not very impresssive… Let’s try something else.</p>
+<p>Not very impressive… Let’s try something else.</p>
 </div>
 <div id="support-vector-machines" class="section level2">
 <h2>Support Vector Machines</h2>
+<p>We will continue with Support Vector Machines.<br />
+This time we’ll add K-fold cross-validation method with 3 folds.</p>
 <pre class="r"><code>tr_control &lt;- trainControl(method=&quot;cv&quot;, number = 3)
-set.seed(seed)
 
-fit_svm &lt;- svm(classe ~., data = sub.training, trControl=tr_control)
-pred_svm &lt;- predict(fit_svm, newdata = validation)
+set.seed(seed)
+start_time &lt;- proc.time()
+fit_svm &lt;- svm(classe ~., data = sub.training, trControl = tr_control)
+finish_time &lt;- proc.time() - start_time
+print(finish_time)</code></pre>
+<pre><code>##    user  system elapsed 
+##   82.68    0.27   84.67</code></pre>
+<p>There is more time spent on training, but let’s check the accuracy</p>
+<pre class="r"><code>pred_svm &lt;- predict(fit_svm, newdata = validation)
 confusionMatrix(pred_svm, validation$classe)</code></pre>
 <pre><code>## Confusion Matrix and Statistics
 ## 
@@ -284,11 +300,21 @@ confusionMatrix(pred_svm, validation$classe)</code></pre>
 ## Detection Rate         0.2816   0.1762   0.1670   0.1485   0.1766
 ## Detection Prevalence   0.2934   0.1825   0.1896   0.1564   0.1780
 ## Balanced Accuracy      0.9867   0.9513   0.9652   0.9480   0.9797</code></pre>
+<p>94.98% accuracy on validation set - not bad!<br />
+We’ll give another try with one more approach and then pick a winner.</p>
 </div>
 <div id="random-forest" class="section level2">
 <h2>Random Forest</h2>
-<pre class="r"><code>fit_rf &lt;- randomForest(classe ~., data = sub.training, trControl=tr_control)
-pred_rf &lt;- predict(fit_rf, newdata = validation)
+<p>It’s Random Forest’s turn. We’ll use the same cross-validation with it.</p>
+<pre class="r"><code>set.seed(seed)
+start_time &lt;- proc.time()
+fit_rf &lt;- randomForest(classe ~., data = sub.training, trControl = tr_control)
+finish_time &lt;- proc.time() - start_time
+print(finish_time)</code></pre>
+<pre><code>##    user  system elapsed 
+##   93.39    0.39   96.69</code></pre>
+<p>It took less time than for SVM. And what’s the score?</p>
+<pre class="r"><code>pred_rf &lt;- predict(fit_rf, newdata = validation)
 confusionMatrix(pred_rf, validation$classe)</code></pre>
 <pre><code>## Confusion Matrix and Statistics
 ## 
@@ -321,7 +347,16 @@ confusionMatrix(pred_rf, validation$classe)</code></pre>
 ## Detection Rate         0.2845   0.1929   0.1737   0.1637   0.1835
 ## Detection Prevalence   0.2847   0.1935   0.1741   0.1639   0.1837
 ## Balanced Accuracy      0.9999   0.9980   0.9980   0.9993   0.9993</code></pre>
+<p>99.84% accuracy on validation set, thus estimation of out-of sample error is 0.16% - we have our winner.</p>
 </div>
+</div>
+<div id="applying-the-chosen-algorithm" class="section level1">
+<h1>Applying the chosen algorithm</h1>
+<p>So now it’s time to apply the chosen algorithm on our test data set and make a prediction that will finalize this assignment.</p>
+<pre class="r"><code>predict(fit_rf, newdata = testing)</code></pre>
+<pre><code>##  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 
+##  B  A  B  A  A  E  D  B  A  A  B  C  B  A  E  E  A  B  B  B 
+## Levels: A B C D E</code></pre>
 </div>
 
 

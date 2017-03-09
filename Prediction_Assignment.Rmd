@@ -31,6 +31,8 @@ Downloading files and storing them in `data` folder (if not yet there)
 ```{r}
 url1 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
 url2 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+if(!dir.exists("data")) {dir.create("data")}
 if(!file.exists("data/pml-training.csv")) {
       download.file(url1, "data/pml-training.csv")
 }
@@ -76,7 +78,7 @@ It looks like first 5 of them are not that useful (user name, time stamp, etc..)
 training <- training[, -c(1:5)]
 ```
 
-# Prediction algorithm choosing
+# Choosing the prediction algorithm
 
 For further estimation of out-of-sample error we will divide the initial training set on two: sub-training and validation.
 ```{r}
@@ -90,12 +92,17 @@ validation <- training[-inTrain, ]
 ## Decision tree
 First let's fit a model based on Decision tree method and build the prediction on validation set.
 ```{r}
+set.seed(seed)
+start_time <- proc.time()
 fit_dt <- rpart(classe ~., data = sub.training)
+finish_time <- proc.time() - start_time
+print(finish_time)
+```
+Model training took very little time. Let's check the accuracy on validation set
+```{r}
 pred_dt <- predict(fit_dt, newdata = validation, type = "class")
-
 confusionMatrix(pred_dt, validation$classe)
 ```
-
 Accuracy of our prediction is 78.83% and the estimation of out-of sample error is 21%
 ```{r}
 unname(1 - confusionMatrix(pred_dt, validation$classe)$overall[1])
@@ -103,24 +110,45 @@ unname(1 - confusionMatrix(pred_dt, validation$classe)$overall[1])
 Not very impressive... Let's try something else.
 
 ## Support Vector Machines
-
+We will continue with Support Vector Machines.  
+This time we'll add K-fold cross-validation method with 3 folds.
 ```{r}
 tr_control <- trainControl(method="cv", number = 3)
-set.seed(seed)
 
+set.seed(seed)
+start_time <- proc.time()
 fit_svm <- svm(classe ~., data = sub.training, trControl = tr_control)
+finish_time <- proc.time() - start_time
+print(finish_time)
+```
+There is more time spent on training, but let's check the accuracy
+```{r}
 pred_svm <- predict(fit_svm, newdata = validation)
 confusionMatrix(pred_svm, validation$classe)
 ```
-
+94.98% accuracy on validation set - not bad!  
+We'll give another try with one more approach and then pick a winner.
 
 ## Random Forest
-
+It's Random Forest's turn. We'll use the same cross-validation with it.
 ```{r}
+set.seed(seed)
+start_time <- proc.time()
 fit_rf <- randomForest(classe ~., data = sub.training, trControl = tr_control)
+finish_time <- proc.time() - start_time
+print(finish_time)
+```
+It took less time than for SVM. And what's the score?
+```{r}
 pred_rf <- predict(fit_rf, newdata = validation)
 confusionMatrix(pred_rf, validation$classe)
 ```
+99.84% accuracy on validation set, thus estimation of out-of sample error is 0.16% - we have our winner.
 
+# Applying the chosen algorithm
+So now it's time to apply the chosen algorithm on our test data set and make a prediction that will finalize this assignment.
+```{r}
+predict(fit_rf, newdata = testing)
+```
 
 
